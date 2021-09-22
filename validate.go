@@ -30,6 +30,12 @@ func (v *validator) SetConfig(conf *Config) *validator {
 }
 
 func (v *validator) GetConfig() *Config {
+	if v.config == nil {
+		v.config = &Config{
+			FieldDescribeTag: defaultFieldDescribeTag,
+			ValidationTag:    defaultValidationTag,
+		}
+	}
 	return v.config
 }
 
@@ -48,13 +54,6 @@ func (v *validator) SetError(err error) *validator {
 2、解析reqValidate每一个字段信息
 */
 func (v *validator) Binding(req string, obj interface{}) *validator {
-	//初始化配置
-	if v.config == nil {
-		v.config = &Config{
-			FieldDescribeTag: defaultFieldDescribeTag,
-			ValidationTag:    defaultValidationTag,
-		}
-	}
 	value := reflect.ValueOf(obj)
 	//确保 obj 是struct
 	if value.Kind() == reflect.Ptr && !value.IsNil() {
@@ -104,7 +103,7 @@ func (v *validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 		}
 
 		//获取验证标签
-		validateTag = fld.Tag.Get(v.config.ValidationTag)
+		validateTag = fld.Tag.Get(v.GetConfig().ValidationTag)
 		//验证标签是否忽略 或者为空
 		if validateTag == skipValidationTag {
 			continue
@@ -112,7 +111,7 @@ func (v *validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 		//获取字段名
 		customName = fld.Name
 		//如果设置字段别名
-		descTag := fld.Tag.Get(v.config.FieldDescribeTag)
+		descTag := fld.Tag.Get(v.GetConfig().FieldDescribeTag)
 		if descTag != blank {
 			customName = descTag
 		}

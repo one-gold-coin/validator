@@ -25,7 +25,6 @@ var (
 		"email":    isEmail,
 		"min":      hasMinOf,
 		"max":      hasMaxOf,
-		"boolean":  isBoolean,
 		"oneof":    isOneOf,
 	}
 )

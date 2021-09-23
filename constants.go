@@ -4,6 +4,7 @@ package validator
 const (
 	defaultValidationTag    = "validate"
 	defaultFieldDescribeTag = "desc"
+	defaultOmitemptyTag     = "omitempty"
 )
 
 const (

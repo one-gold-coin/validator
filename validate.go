@@ -6,18 +6,23 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 )
 
+var instance *validator
+var once sync.Once
+
 func Validator() *validator {
-	return &validator{}
+	once.Do(func() {
+		instance = &validator{}
+	})
+	return instance
 }
 
 type validator struct {
-	config              *Config
-	field               *Field
-	err                 error //错误信息
-	isValidationFuncErr bool  //是否验证错误信息
-	sliceIndex          *int  //如果是slice 以此判断是第几个slice有错误
+	config *Config
+	field  *Field
+	err    error
 }
 
 func (v *validator) GetField() *Field {
@@ -34,6 +39,7 @@ func (v *validator) GetConfig() *Config {
 		v.config = &Config{
 			FieldDescribeTag: defaultFieldDescribeTag,
 			ValidationTag:    defaultValidationTag,
+			OmitemptyTag:     defaultOmitemptyTag,
 		}
 	}
 	return v.config
@@ -137,7 +143,6 @@ func (v *validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 			}
 		case reflect.Slice, reflect.Array:
 			for j := 0; j < current.Field(i).Len(); j++ {
-				v.sliceIndex = &j
 				if v.extractStruct(current.Field(i).Index(j), false) {
 					return true
 				}
@@ -155,9 +160,22 @@ func (v *validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 	// 获取验证Tag列表
 	tags := strings.Split(tagStr, tagSeparator)
 	for i := 0; i < len(tags); i++ {
+		t = tags[i]
+		if t == v.GetConfig().OmitemptyTag {
+			switch current.Kind() {
+			case reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
+				if !current.IsNil() {
+					continue
+				}
+			default:
+				if current.IsValid() {
+					continue
+				}
+			}
+			return nil
+		}
 		tag := &Tag{}
 		tag.rv = &current
-		t = tags[i]
 		orVials := strings.Split(t, orSeparator)
 		for j := 0; j < len(orVials); j++ {
 			vals := strings.SplitN(orVials[j], tagKeySeparator, 2)

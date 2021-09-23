@@ -48,6 +48,7 @@ if err := controller.Validator(ctx, &req); err != nil {
 
 # 支持的验证方式,目前只支持常用验证类型
 ```
+omitempty
 required
 len
 eq

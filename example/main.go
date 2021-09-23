@@ -7,13 +7,13 @@ import (
 
 // User contains user information
 type User struct {
-	FirstName string     `json:"fname" validate:"required,min=1" desc:"姓氏"`
+	FirstName string     `json:"fname" validate:"omitempty,required,min=1" desc:"姓氏"`
 	LastName  string     `json:"lname" validate:"required" desc:"名称"`
-	Age       int        `json:"age" validate:"gte=0,lte=100" desc:"年龄"`
+	Age       int        `json:"age" validate:"omitempty,gte=0,lte=100" desc:"年龄"`
 	Sex       int        `json:"sex" validate:"required,oneof=1 2" desc:"性别"`
 	Email     string     `json:"email" validate:"required,email" desc:"邮件"`
 	Job       *Job       `json:"job" validate:"required" desc:"工作"`
-	Addresses []*Address `json:"addresses" validate:"required,min=1" desc:"地址"`
+	Addresses []*Address `json:"addresses" validate:"omitempty,required,min=1" desc:"地址"`
 }
 
 type Job struct {
@@ -33,7 +33,7 @@ func main() {
 
 	req := `
 {
-	"fname":"我F",
+	"fname":"1",
 	"lname":"我L",
 	"age":1,
 	"sex":2,

@@ -7,6 +7,7 @@ import (
 type Config struct {
 	FieldDescribeTag string
 	ValidationTag    string
+	OmitemptyTag     string
 }
 
 // Field 字段信息

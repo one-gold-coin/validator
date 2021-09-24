@@ -1,55 +1,49 @@
 package validator
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 )
 
-var instance *validator
-var once sync.Once
-
-func Validator() *validator {
-	once.Do(func() {
-		instance = &validator{}
-	})
-	return instance
+func New() *Validator {
+	v := &Validator{
+		config: &Config{
+			FieldDescribeTag: defaultFieldDescribeTag,
+			ValidationTag:    defaultValidationTag,
+			OmitemptyTag:     defaultOmitemptyTag,
+		},
+		translate: NewZhTranslate(),
+	}
+	return v
 }
 
-type validator struct {
-	config *Config
-	field  *Field
-	err    error
+type Validator struct {
+	config    *Config
+	field     *Field
+	translate *ZhTranslate
+	err       error
 }
 
-func (v *validator) GetField() *Field {
+func (v *Validator) GetField() *Field {
 	return v.field
 }
 
-func (v *validator) SetConfig(conf *Config) *validator {
+func (v *Validator) SetConfig(conf *Config) *Validator {
 	v.config = conf
 	return v
 }
 
-func (v *validator) GetConfig() *Config {
-	if v.config == nil {
-		v.config = &Config{
-			FieldDescribeTag: defaultFieldDescribeTag,
-			ValidationTag:    defaultValidationTag,
-			OmitemptyTag:     defaultOmitemptyTag,
-		}
-	}
+func (v *Validator) GetConfig() *Config {
 	return v.config
 }
 
-func (v *validator) Error() error {
+func (v *Validator) Error() error {
 	return v.err
 }
 
-func (v *validator) SetError(err error) *validator {
+func (v *Validator) SetError(err error) *Validator {
 	v.err = err
 	return v
 }
@@ -59,33 +53,27 @@ func (v *validator) SetError(err error) *validator {
 1、给reqValidate赋值
 2、解析reqValidate每一个字段信息
 */
-func (v *validator) Binding(req string, obj interface{}) *validator {
+func (v *Validator) Binding(obj interface{}) *Validator {
 	value := reflect.ValueOf(obj)
 	//确保 obj 是struct
 	if value.Kind() == reflect.Ptr && !value.IsNil() {
 		value = value.Elem()
 	}
 	if value.Kind() != reflect.Struct && value.Kind() != reflect.Interface {
-		v.SetError(errors.New("验证必须是结构体"))
-		return v
-	}
-	//struct 赋值
-	if err := json.NewDecoder(strings.NewReader(req)).Decode(obj); err != nil {
-		v.SetError(errors.New("参加Json解析失败"))
+		v.SetError(errors.New(mustStruct))
 		return v
 	}
 	// 遍历 Struct 字段结构 & 校验数据
 	isValidationFuncErr := v.extractStruct(value, false)
 	// 解析参数校验错误信息
 	if isValidationFuncErr {
-		t := new(ZhTranslate)
-		v.SetError(t.Translate(v).GetErr())
+		v.SetError(v.translate.Translate(v).GetErr())
 	}
 	return v
 }
 
 // 提取 Struct 字段信息
-func (v *validator) extractStruct(current reflect.Value, isValidationFuncErr bool) bool {
+func (v *Validator) extractStruct(current reflect.Value, isValidationFuncErr bool) bool {
 	if isValidationFuncErr {
 		return isValidationFuncErr
 	}
@@ -107,25 +95,24 @@ func (v *validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 		if !fld.Anonymous && fld.PkgPath != blank {
 			continue
 		}
-
 		//获取验证标签
 		validateTag = fld.Tag.Get(v.GetConfig().ValidationTag)
 		//验证标签是否忽略 或者为空
 		if validateTag == skipValidationTag {
 			continue
 		}
-		//获取字段名
-		customName = fld.Name
-		//如果设置字段别名
-		descTag := fld.Tag.Get(v.GetConfig().FieldDescribeTag)
-		if descTag != blank {
-			customName = descTag
-		}
-		v.field = &Field{Idx: i, AliasName: customName, Sf: &fld}
+		//验证数据
 		if len(validateTag) > 0 {
 			tags := v.parseFieldTags(current.Field(i), validateTag, fld.Name)
 			if tags != nil && tags.isHaveErr == true {
-				v.field.Tags = tags
+				//获取字段名
+				customName = fld.Name
+				//如果设置字段别名
+				descTag := fld.Tag.Get(v.GetConfig().FieldDescribeTag)
+				if descTag != blank {
+					customName = descTag
+				}
+				v.field = &Field{Idx: i, AliasName: customName, Sf: &fld, Tags: tags}
 				return true
 			}
 		}
@@ -153,7 +140,7 @@ func (v *validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 }
 
 //验证数据
-func (v *validator) parseFieldTags(current reflect.Value, tagStr string, fieldName string) *Tag {
+func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldName string) *Tag {
 	var t string
 	//获取真实数据类型
 	current, _ = v.extractTypeInternal(current)
@@ -178,6 +165,7 @@ func (v *validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 		tag.rv = &current
 		orVials := strings.Split(t, orSeparator)
 		for j := 0; j < len(orVials); j++ {
+			//获取验证值
 			vals := strings.SplitN(orVials[j], tagKeySeparator, 2)
 			tag.tag = vals[0]
 			if len(tag.tag) == 0 {
@@ -205,7 +193,7 @@ func (v *validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 }
 
 //获取真实数据类型
-func (v *validator) extractTypeInternal(current reflect.Value) (reflect.Value, reflect.Kind) {
+func (v *Validator) extractTypeInternal(current reflect.Value) (reflect.Value, reflect.Kind) {
 
 BEGIN:
 	switch current.Kind() {

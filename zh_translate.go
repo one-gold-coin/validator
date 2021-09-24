@@ -9,7 +9,7 @@ import (
 var (
 	// {0} == field.AliasName
 	// {1} == field.Tags.param
-	translateMap = map[string]string{
+	defaultTranslateMap = map[string]string{
 		"required": "{0}为必填字段",
 		"eq":       "{0}不等于{1}",
 		"ne":       "{0}不能等于{1}",
@@ -53,6 +53,13 @@ var (
 	}
 )
 
+func NewZhTranslate() *ZhTranslate {
+	t := &ZhTranslate{
+		translateMap: defaultTranslateMap,
+	}
+	return t
+}
+
 type ZhTranslate struct {
 	translateMap map[string]string
 	err          error
@@ -68,9 +75,6 @@ func (m *ZhTranslate) SetErr(err error) *ZhTranslate {
 }
 
 func (m *ZhTranslate) GetTranslateMap() map[string]string {
-	if m.translateMap == nil {
-		m.defaultTranslateMap()
-	}
 	return m.translateMap
 }
 
@@ -79,12 +83,7 @@ func (m *ZhTranslate) SetTranslateMap(translateMap map[string]string) *ZhTransla
 	return m
 }
 
-func (m *ZhTranslate) defaultTranslateMap() {
-	m.translateMap = translateMap
-	return
-}
-
-func (m *ZhTranslate) Translate(v *validator) *ZhTranslate {
+func (m *ZhTranslate) Translate(v *Validator) *ZhTranslate {
 	field := v.GetField()
 	tMap := m.GetTranslateMap()
 	//如果是指针类型则取指针对应真实类型

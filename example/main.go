@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/one-gold-coin/validator"
+	_ "net/http/pprof"
+	"strings"
 )
 
 // User contains user information
@@ -28,6 +31,8 @@ type Address struct {
 	Planet string `json:"planet" validate:"required" desc:"星球"`
 	Phone  string `json:"phone" validate:"required,max=11" desc:"联系手机号"`
 }
+
+var validate *validator.Validator
 
 func main() {
 
@@ -59,11 +64,18 @@ func main() {
 	]
 }
 `
-	user := User{}
-	err := validator.Validator().Binding(req, &user).Error()
+	//struct 赋值
+	user := &User{}
+	err := json.NewDecoder(strings.NewReader(req)).Decode(user)
+	if err != nil {
+		return
+	}
+	validate = validator.New()
+	err = validate.Binding(user).Error()
 	if err != nil {
 		fmt.Printf("%s: %s", "err", err.Error())
 		return
 	}
-	fmt.Printf("%s: %+v", "user", user)
+	return
+
 }

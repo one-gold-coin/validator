@@ -77,9 +77,10 @@ func (v *Validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 	if isValidationFuncErr {
 		return isValidationFuncErr
 	}
-	//获取真实数据类型
-	current, _ = v.extractTypeInternal(current)
 	//获取字段数量
+	if current.Kind() == reflect.Ptr || current.Kind() == reflect.Interface {
+		current = current.Elem()
+	}
 	numFields := current.NumField()
 	typ := current.Type()
 
@@ -142,14 +143,15 @@ func (v *Validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 //验证数据
 func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldName string) *Tag {
 	var t string
+	var kind reflect.Kind
 	//获取真实数据类型
-	current, _ = v.extractTypeInternal(current)
+	current, kind = v.extractTypeInternal(current)
 	// 获取验证Tag列表
 	tags := strings.Split(tagStr, tagSeparator)
 	for i := 0; i < len(tags); i++ {
 		t = tags[i]
 		if t == v.GetConfig().OmitemptyTag {
-			switch current.Kind() {
+			switch kind {
 			case reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
 				if !current.IsNil() {
 					continue
@@ -169,7 +171,7 @@ func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 			vals := strings.SplitN(orVials[j], tagKeySeparator, 2)
 			tag.tag = vals[0]
 			if len(tag.tag) == 0 {
-				v.err = errors.New(strings.TrimSpace(fmt.Sprintf(invalidValidation, fieldName)))
+				v.SetError(errors.New(strings.TrimSpace(fmt.Sprintf(invalidValidation, fieldName))))
 				return nil
 			}
 			if len(vals) > 1 {
@@ -177,7 +179,7 @@ func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 			}
 			// 验证
 			if validationFunc, ok := validationFuncS[tag.tag]; !ok {
-				v.err = errors.New(strings.TrimSpace(fmt.Sprintf(undefinedValidation, fieldName)))
+				v.SetError(errors.New(strings.TrimSpace(fmt.Sprintf(undefinedValidation, fieldName))))
 				return nil
 			} else {
 				validationFuncResult := validationFunc(tag)

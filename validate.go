@@ -87,8 +87,8 @@ func (v *Validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 	if current.Kind() == reflect.Ptr || current.Kind() == reflect.Interface {
 		current = current.Elem()
 	}
-	numFields := current.NumField()
 	typ := current.Type()
+	numFields := current.NumField()
 
 	var fld reflect.StructField
 	var validateTag string
@@ -137,6 +137,13 @@ func (v *Validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 			}
 		case reflect.Slice, reflect.Array:
 			for j := 0; j < current.Field(i).Len(); j++ {
+				//如果Slice是值类型时不校验
+				switch current.Field(i).Index(j).Kind() {
+				case reflect.String, reflect.Int, reflect.Int64:
+					return false
+				case reflect.Ptr, reflect.Interface:
+					return false
+				}
 				if v.extractStruct(current.Field(i).Index(j), false) {
 					return true
 				}

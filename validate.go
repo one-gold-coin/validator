@@ -5,24 +5,17 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 )
 
-var instance *Validator
-var once sync.Once
-
 func New() *Validator {
-	once.Do(func() {
-		instance = &Validator{
-			config: &Config{
-				FieldDescribeTag: defaultFieldDescribeTag,
-				ValidationTag:    defaultValidationTag,
-				OmitemptyTag:     defaultOmitemptyTag,
-			},
-			translate: NewZhTranslate(),
-		}
-	})
-	return instance
+	return &Validator{
+		config: &Config{
+			FieldDescribeTag: defaultFieldDescribeTag,
+			ValidationTag:    defaultValidationTag,
+			OmitemptyTag:     defaultOmitemptyTag,
+		},
+		translate: NewZhTranslate(),
+	}
 }
 
 type Validator struct {

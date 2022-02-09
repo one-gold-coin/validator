@@ -10,7 +10,7 @@ import (
 
 // User contains user information
 type User struct {
-	FirstName *string    `json:"fname" validate:"omitempty,required,min=1" desc:"姓氏"`
+	FirstName *string    `json:"fname" validate:"omitempty,required,min=1,max=5" desc:"姓氏"`
 	LastName  string     `json:"lname" validate:"required" desc:"名称"`
 	Age       int        `json:"age" validate:"omitempty,gte=0,lte=100" desc:"年龄"`
 	Credit    []*int     `json:"credit" validate:"required,min=1,max=100" desc:"学分"`
@@ -45,7 +45,7 @@ func main() {
 
 	req := `
 {
-	"fname":"1",
+	"fname":"123456",
 	"lname":"我L",
 	"age":1,
 	"sex":2,

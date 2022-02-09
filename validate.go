@@ -73,10 +73,6 @@ func (v *Validator) Binding(obj interface{}) *Validator {
 
 // 提取 Struct 字段信息
 func (v *Validator) extractStruct(current reflect.Value) bool {
-	//获取字段数量
-	if current.Kind() == reflect.Ptr || current.Kind() == reflect.Interface {
-		current = current.Elem()
-	}
 	// 结构体信息
 	currentType := current.Type()
 	// 获取结构体字段数量

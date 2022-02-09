@@ -63,7 +63,7 @@ func (v *Validator) Binding(obj interface{}) *Validator {
 		return v
 	}
 	// 遍历 Struct 字段结构 & 校验数据
-	isValidationFuncErr := v.extractStruct(value, false)
+	isValidationFuncErr := v.extractStruct(value)
 	// 解析参数校验错误信息
 	if isValidationFuncErr {
 		v.SetError(v.translate.Translate(v).GetErr())
@@ -72,74 +72,77 @@ func (v *Validator) Binding(obj interface{}) *Validator {
 }
 
 // 提取 Struct 字段信息
-func (v *Validator) extractStruct(current reflect.Value, isValidationFuncErr bool) bool {
-	if isValidationFuncErr {
-		return isValidationFuncErr
-	}
+func (v *Validator) extractStruct(current reflect.Value) bool {
 	//获取字段数量
 	if current.Kind() == reflect.Ptr || current.Kind() == reflect.Interface {
 		current = current.Elem()
 	}
-	typ := current.Type()
-	numFields := current.NumField()
-
-	var fld reflect.StructField
-	var validateTag string
-	var customName string
-
+	// 结构体信息
+	currentType := current.Type()
+	// 获取结构体字段数量
+	numFields := currentType.NumField()
 	for i := 0; i < numFields; i++ {
-
-		fld = typ.Field(i)
-
+		currentField := current.Field(i)
+		// 获取每个字段信息
+		currentStructField := currentType.Field(i)
+		//获取字段名
+		fieldName := currentStructField.Name
 		//是否空字段"-", struct{-}
-		if !fld.Anonymous && fld.PkgPath != blank {
+		if !currentStructField.Anonymous && currentStructField.PkgPath != blank {
 			continue
 		}
 		//获取验证标签
-		validateTag = fld.Tag.Get(v.GetConfig().ValidationTag)
-		//验证标签是否忽略 或者为空
-		if validateTag == skipValidationTag {
+		validateTag := currentStructField.Tag.Get(v.GetConfig().ValidationTag)
+		//验证标签是否忽略或者为空
+		if validateTag == skipValidationTag || validateTag == blank {
 			continue
 		}
-		//验证数据
+		//如果有验证Tag,则进行数据验证
 		if len(validateTag) > 0 {
-			tags := v.parseFieldTags(current.Field(i), validateTag, fld.Name)
+			tags := v.parseFieldTags(current.Field(i), validateTag, &currentStructField.Name)
 			if tags != nil && tags.isHaveErr == true {
-				//获取字段名
-				customName = fld.Name
 				//如果设置字段别名
-				descTag := fld.Tag.Get(v.GetConfig().FieldDescribeTag)
+				descTag := currentStructField.Tag.Get(v.GetConfig().FieldDescribeTag)
+				v.field = &Field{Idx: i, AliasName: fieldName, Sf: &currentStructField, Tags: tags}
 				if descTag != blank {
-					customName = descTag
+					v.field.AliasName = descTag
 				}
-				v.field = &Field{Idx: i, AliasName: customName, Sf: &fld, Tags: tags}
 				return true
 			}
 		}
-		//在此完善其他结构逻辑
-		switch current.Field(i).Type().Kind() {
-		case reflect.Ptr:
-			if current.Field(i).Type().Elem().Kind() == reflect.Struct {
-				if v.extractStruct(current.Field(i).Elem(), false) {
+		//递归处理,深层级逻辑
+		if v.handleCurrentField(currentField) {
+			return true
+		}
+	}
+	return false
+}
+
+// 递归处理,深层级逻辑
+func (v *Validator) handleCurrentField(current reflect.Value) bool {
+	switch current.Type().Kind() {
+	case reflect.Ptr, reflect.Interface:
+		if v.handleCurrentField(current.Elem()) {
+			return true
+		}
+	case reflect.Struct, reflect.Map:
+		if v.extractStruct(current) {
+			return true
+		}
+	case reflect.Slice, reflect.Array:
+		for j := 0; j < current.Len(); j++ {
+			//如果Slice是值类型时不校验,eg:[1],["a"]
+			switch current.Index(j).Kind() {
+			case reflect.String, reflect.Int, reflect.Int64:
+				return false
+			case reflect.Ptr, reflect.Interface:
+				if v.handleCurrentField(current.Index(j).Elem()) {
 					return true
 				}
+				return false
 			}
-		case reflect.Struct, reflect.Map:
-			if v.extractStruct(current.Field(i), false) {
+			if v.extractStruct(current.Index(j)) {
 				return true
-			}
-		case reflect.Slice, reflect.Array:
-			for j := 0; j < current.Field(i).Len(); j++ {
-				//如果Slice是值类型时不校验
-				switch current.Field(i).Index(j).Kind() {
-				case reflect.String, reflect.Int, reflect.Int64:
-					return false
-				case reflect.Ptr, reflect.Interface:
-					return false
-				}
-				if v.extractStruct(current.Field(i).Index(j), false) {
-					return true
-				}
 			}
 		}
 	}
@@ -147,34 +150,37 @@ func (v *Validator) extractStruct(current reflect.Value, isValidationFuncErr boo
 }
 
 //验证数据
-func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldName string) *Tag {
-	var t string
+func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldName *string) *Tag {
+	var validaTag string
 	var kind reflect.Kind
+	var tags []string
+	var tag Tag
+	var vals []string
 	//获取真实数据类型
 	current, kind = v.extractTypeInternal(current)
 	// 获取验证Tag列表
-	tags := strings.Split(tagStr, tagSeparator)
+	tags = strings.Split(tagStr, tagSeparator)
 	for i := 0; i < len(tags); i++ {
-		t = tags[i]
-		if t == v.GetConfig().OmitemptyTag {
+		validaTag = tags[i]
+		// 当Tag == OmitemptyTag 时，再验证
+		if v.GetConfig().OmitemptyTag != "" && validaTag == v.GetConfig().OmitemptyTag {
 			switch kind {
 			case reflect.Slice, reflect.Map, reflect.Ptr, reflect.Interface, reflect.Chan, reflect.Func:
 				if !current.IsNil() {
 					continue
 				}
 			default:
-				if current.IsValid() {
+				if current.IsValid() && current.Interface() != reflect.Zero(current.Type()).Interface() {
 					continue
 				}
 			}
 			return nil
 		}
-		tag := &Tag{}
 		tag.rv = &current
-		orVials := strings.Split(t, orSeparator)
+		orVials := strings.Split(validaTag, orSeparator)
 		for j := 0; j < len(orVials); j++ {
 			//获取验证值
-			vals := strings.SplitN(orVials[j], tagKeySeparator, 2)
+			vals = strings.SplitN(orVials[j], tagKeySeparator, 2)
 			tag.tag = vals[0]
 			if len(tag.tag) == 0 {
 				v.SetError(errors.New(strings.TrimSpace(fmt.Sprintf(invalidValidation, fieldName))))
@@ -188,11 +194,11 @@ func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 				v.SetError(errors.New(strings.TrimSpace(fmt.Sprintf(undefinedValidation, fieldName))))
 				return nil
 			} else {
-				validationFuncResult := validationFunc(tag)
+				validationFuncResult := validationFunc(&tag)
 				//验证
 				if !validationFuncResult {
 					tag.isHaveErr = true
-					return tag
+					return &tag
 				}
 			}
 		}

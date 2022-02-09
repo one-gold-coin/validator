@@ -13,7 +13,7 @@ type User struct {
 	FirstName *string    `json:"fname" validate:"omitempty,required,min=1" desc:"姓氏"`
 	LastName  string     `json:"lname" validate:"required" desc:"名称"`
 	Age       int        `json:"age" validate:"omitempty,gte=0,lte=100" desc:"年龄"`
-	Credit    []*int      `json:"credit" validate:"required,min=1,max=100" desc:"学分"`
+	Credit    []*int     `json:"credit" validate:"required,min=1,max=100" desc:"学分"`
 	Sex       *int       `json:"sex" validate:"required,oneof=1 2" desc:"性别"`
 	Email     string     `json:"email" validate:"required,email" desc:"邮件"`
 	Job       *Job       `json:"job" validate:"required" desc:"工作"`
@@ -22,7 +22,13 @@ type User struct {
 
 type Job struct {
 	Id   int    `json:"id" validate:"required,min=1" desc:"工作ID"`
-	Name string `json:"name" desc:"工作名称"`
+	Name string `json:"name" validate:"omitempty,required,min=1,max=5" desc:"工作名称"`
+	City City   `json:"city" validate:"required" desc:"工作城市"`
+}
+
+type City struct {
+	CityId   int    `json:"city_id" validate:"required,min=1" desc:"城市ID"`
+	CityName string `json:"city_name" validate:"omitempty,required,min=1,max=5" desc:"城市名称"`
 }
 
 // Address houses a users address information
@@ -48,7 +54,11 @@ func main() {
 	"favourite_color":"rgb",
 	"job":{
 		"id":1,
-		"name":"职位"
+		"name":"职位",
+		"city":{
+				"city_id":1,
+				"city_name":"12231"
+			}
 	},
 	"addresses":[
 		{

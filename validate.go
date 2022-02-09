@@ -99,7 +99,7 @@ func (v *Validator) extractStruct(current reflect.Value) bool {
 		}
 		//如果有验证Tag,则进行数据验证
 		if len(validateTag) > 0 {
-			tags := v.parseFieldTags(current.Field(i), validateTag, &currentStructField.Name)
+			tags := v.parseFieldTags(current.Field(i), validateTag, currentStructField.Name)
 			if tags != nil && tags.isHaveErr == true {
 				//如果设置字段别名
 				descTag := currentStructField.Tag.Get(v.GetConfig().FieldDescribeTag)
@@ -150,7 +150,7 @@ func (v *Validator) handleCurrentField(current reflect.Value) bool {
 }
 
 //验证数据
-func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldName *string) *Tag {
+func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldName string) *Tag {
 	var validaTag string
 	var kind reflect.Kind
 	var tags []string

@@ -17,5 +17,5 @@ const (
 	skipValidationTag   = "-"
 	invalidValidation   = "Invalid validation tag on field %s"
 	undefinedValidation = "Undefined validation function on field %s"
-	mustStruct          = "Obj must struct"
+	mustStruct          = "Object Must Struct"
 )

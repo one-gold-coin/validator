@@ -85,19 +85,19 @@ func (v *Validator) extractStruct(current reflect.Value) bool {
 		currentField := current.Field(i)
 		// 获取每个字段信息
 		currentStructField := currentType.Field(i)
-		//获取字段名
+		// 获取字段名
 		fieldName := currentStructField.Name
-		//是否空字段"-", struct{-}
+		// 是否空字段"-", struct{-}
 		if !currentStructField.Anonymous && currentStructField.PkgPath != blank {
 			continue
 		}
-		//获取验证标签
+		// 获取验证标签
 		validateTag := currentStructField.Tag.Get(v.GetConfig().ValidationTag)
-		//验证标签是否忽略或者为空
+		// 验证标签是否忽略或者为空
 		if validateTag == skipValidationTag || validateTag == blank {
 			continue
 		}
-		//如果有验证Tag,则进行数据验证
+		// 如果有验证Tag,则进行数据验证
 		if len(validateTag) > 0 {
 			tags := v.parseFieldTags(current.Field(i), validateTag, currentStructField.Name)
 			if tags != nil && tags.isHaveErr == true {
@@ -110,7 +110,7 @@ func (v *Validator) extractStruct(current reflect.Value) bool {
 				return true
 			}
 		}
-		//递归处理,深层级逻辑
+		// 递归处理,深层级逻辑
 		if v.handleCurrentField(currentField) {
 			return true
 		}
@@ -131,7 +131,7 @@ func (v *Validator) handleCurrentField(current reflect.Value) bool {
 		}
 	case reflect.Slice, reflect.Array:
 		for j := 0; j < current.Len(); j++ {
-			//如果Slice是值类型时不校验,eg:[1],["a"]
+			// 如果Slice是值类型时不校验,eg:[1],["a"]
 			switch current.Index(j).Kind() {
 			case reflect.String, reflect.Int, reflect.Int64:
 				return false
@@ -149,14 +149,14 @@ func (v *Validator) handleCurrentField(current reflect.Value) bool {
 	return false
 }
 
-//验证数据
+// 验证数据
 func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldName string) *Tag {
 	var validaTag string
 	var kind reflect.Kind
 	var tags []string
 	var tag Tag
 	var vals []string
-	//获取真实数据类型
+	// 获取真实数据类型
 	current, kind = v.extractTypeInternal(current)
 	// 获取验证Tag列表
 	tags = strings.Split(tagStr, tagSeparator)
@@ -179,7 +179,7 @@ func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 		tag.rv = &current
 		orVials := strings.Split(validaTag, orSeparator)
 		for j := 0; j < len(orVials); j++ {
-			//获取验证值
+			// 获取验证值
 			vals = strings.SplitN(orVials[j], tagKeySeparator, 2)
 			tag.tag = vals[0]
 			if len(tag.tag) == 0 {
@@ -195,7 +195,7 @@ func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 				return nil
 			} else {
 				validationFuncResult := validationFunc(&tag)
-				//验证
+				// 验证
 				if !validationFuncResult {
 					tag.isHaveErr = true
 					return &tag
@@ -206,7 +206,7 @@ func (v *Validator) parseFieldTags(current reflect.Value, tagStr string, fieldNa
 	return nil
 }
 
-//获取真实数据类型
+// 获取真实数据类型
 func (v *Validator) extractTypeInternal(current reflect.Value) (reflect.Value, reflect.Kind) {
 
 BEGIN:
